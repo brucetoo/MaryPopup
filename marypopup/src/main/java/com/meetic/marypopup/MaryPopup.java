@@ -180,7 +180,7 @@ public class MaryPopup implements View.OnClickListener {
                     popupView = (ViewGroup) LayoutInflater.from(activity).inflate(R.layout.popup_layout, activityView, false);
                 }
                 if (popupView != null) {
-                    if (width >= 0) {
+                    if (width >= 0) {//already set width
                         ViewGroup.LayoutParams layoutParams = popupView.getLayoutParams();
                         layoutParams.width = width;
                         popupView.setLayoutParams(layoutParams);

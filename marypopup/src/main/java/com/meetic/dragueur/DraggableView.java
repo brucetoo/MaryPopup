@@ -29,7 +29,7 @@ public class DraggableView extends FrameLayout {
     boolean vertical = false;
     boolean rotationEnabled;
     float rotationValue;
-    boolean animating;
+    boolean animating;//if draggable view already animating
     float minVelocity;
     DraggableViewListener dragListener;
     GestureDetectorCompat detector;
@@ -62,6 +62,11 @@ public class DraggableView extends FrameLayout {
         return viewAnimator;
     }
 
+    /**
+     * When left-right top-bottom animate exit not be handled,
+     * We need animate to origin location
+     * @param duration
+     */
     public void animateToOrigin(int duration){
         if(viewAnimator != null){
             viewAnimator.animateToOrigin(this, duration);
@@ -191,6 +196,10 @@ public class DraggableView extends FrameLayout {
             case MotionEvent.ACTION_MOVE: {
                 float newMotionX = event.getRawX();
                 float newMotionY = event.getRawY();
+                //left-right > 10 or top-bottom > 10 we need intercept touch event
+                //why not use getScaledTouchSlop() instead ?
+//                ViewConfiguration compat = ViewConfiguration.get()
+//                compat.getScaledTouchSlop()
                 return (Math.abs(motionXOrigin - newMotionX) > 10 || Math.abs(motionYOrigin - newMotionY) > 10);
             }
         }
@@ -307,7 +316,12 @@ public class DraggableView extends FrameLayout {
         return true;
     }
 
+    /**
+     * Handle touch up action
+     * How to dismiss draggable view.
+     */
     void actionUp() {
+        //get scroll direction
         float percentX = getPercentX();
         float percentY = getPercentY();
 
@@ -317,6 +331,7 @@ public class DraggableView extends FrameLayout {
                     (!vertical && percentX < -maxDragPercentageX && animateExit(Direction.LEFT)) ||
                     (vertical && percentY > maxDragPercentageY && animateExit(Direction.BOTTOM)) ||
                     (vertical && percentY < -maxDragPercentageY && animateExit(Direction.TOP));
+            //if user cannot custom animate exit method,we need animate view to origin location
             if (!animated) {
                 animateToOrigin(ReturnOriginViewAnimator.ANIMATION_RETURN_TO_ORIGIN_DURATION);
             }
@@ -337,13 +352,19 @@ public class DraggableView extends FrameLayout {
         return parentHeight;
     }
 
+    /**
+     * Animate Exit DraggableView
+     * @param direction which direction
+     * @return
+     */
     boolean animateExit(Direction direction) {
         boolean animateExit = false;
         if (viewAnimator != null) {
+            //let the interface handle animateExit
             animateExit = viewAnimator.animateExit(DraggableView.this, direction, DEFAULT_EXIT_DURATION);
         }
 
-        if (animateExit) {
+        if (animateExit) { //if need animate to exit. handle drag listener
             if (dragListener != null) {
                 dragListener.onDraggedStarted(this, direction);
             }
@@ -357,8 +378,9 @@ public class DraggableView extends FrameLayout {
             @Override
             public boolean onFling(@Nullable MotionEvent event1, @Nullable MotionEvent event2, float velocityX, float velocityY) {
                 boolean animated = false;
+                //need care about velocity,and user need call setMinVelocity first
                 if (listenVelocity && !animating && viewAnimator != null && event1 != null && event2 != null) {
-                    if (vertical) {
+                    if (vertical) {//if vertical
                         if (Math.abs(velocityY) > minVelocity) {
                             float distanceY = event1.getRawY() - event2.getRawY();
                             if (distanceY < 0) {
@@ -367,7 +389,7 @@ public class DraggableView extends FrameLayout {
                                 animated = animateExit(Direction.BOTTOM);
                             }
                         }
-                    } else {
+                    } else {//horizontal
                         if (Math.abs(velocityX) > minVelocity) {
                             float distanceX = event1.getRawX() - event2.getRawX();
                             if (distanceX < 0) {
