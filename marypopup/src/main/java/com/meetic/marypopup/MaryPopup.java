@@ -67,7 +67,9 @@ public class MaryPopup implements View.OnClickListener {
 
     MaryPopup(Activity activity) {
         this.activity = activity;
+        //activity 最顶层的view
         this.activityView = (ViewGroup) activity.findViewById(android.R.id.content);
+        //actionbar 容器view
         this.actionBarView = activityView.findViewById(R.id.action_bar_container);
     }
 
@@ -80,6 +82,11 @@ public class MaryPopup implements View.OnClickListener {
         return this;
     }
 
+    /**
+     * contentView
+     * @param contentLayoutId contentId 或者 直接使用contentView
+     * @return
+     */
     public MaryPopup content(int contentLayoutId) {
         View contentView = LayoutInflater.from(activity).inflate(contentLayoutId, popupView, false);
         content(contentView);
@@ -165,18 +172,26 @@ public class MaryPopup implements View.OnClickListener {
         if (blackOverlay == null) {
             {
                 handleClick = false;
+                //初始化遮罩层view
                 blackOverlay = new View(activity);
+                //设置遮罩层颜色
                 blackOverlay.setBackgroundColor(blackOverlayColor);
+                //遮罩层add到父布局
                 activityView.addView(blackOverlay, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+                //遮罩层执行alpha动画
                 DurX.putOn(blackOverlay)
                     .animate()
                     .alpha(0f, 1f);
+                //处理遮罩层的点击事件
                 blackOverlay.setOnClickListener(this);
             }
             {
+                //是否是可拖拽的view
                 if (draggable) {
+                    //初始化可拖拽的view
                     popupView = (ViewGroup) LayoutInflater.from(activity).inflate(R.layout.popup_layout_draggable, activityView, false);
                 } else {
+                    //初始化不可拖拽的view
                     popupView = (ViewGroup) LayoutInflater.from(activity).inflate(R.layout.popup_layout, activityView, false);
                 }
                 if (popupView != null) {
@@ -185,12 +200,14 @@ public class MaryPopup implements View.OnClickListener {
                         layoutParams.width = width;
                         popupView.setLayoutParams(layoutParams);
                     }
-                    if (height >= 0) {
+                    if (height >= 0) {//如果已经设置高度
                         ViewGroup.LayoutParams layoutParams = popupView.getLayoutParams();
                         layoutParams.height = height;
                         popupView.setLayoutParams(layoutParams);
                     }
 
+                    //单独处理可拖拽view的参数设置
+                    //TODO 分析DraggableView的代码
                     if(popupView instanceof DraggableView) {
                         DraggableView draggableView = (DraggableView) popupView;
 
@@ -214,50 +231,61 @@ public class MaryPopup implements View.OnClickListener {
                         }
                         draggableView.setDragListener(new DraggableViewListener(this));
                     }
+                    //根布局点击没做处理
                     popupView.setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
 
                         }
                     });
+                    //弹出层的包裹布局
                     popupViewContent = (ViewGroup) popupView.findViewById(R.id.content);
-                    if (!shadow) {
+                    if (!shadow) {//无阴影 -- 直接设置背景颜色
                         popupView.setBackgroundColor(popupBackgroundColor);
-                    } else {
+                    } else {//有阴影 -- 用ViewCompat包中的elevation兼容方法设置阴影
                         if (popupBackgroundColor != null && popupViewContent != null) {
                             popupViewContent.setBackgroundColor(popupBackgroundColor);
                         }
                         ViewCompat.setElevation(popupView, 6);
                     }
+                    //contentLayout 是指实际需要添加到 popupViewContent的真实布局
                     if (contentLayout != null && popupViewContent != null) {
+                        //此处是为了房子 contentLayout 已经添加到了一个父布局，再次加入popupViewContent中报异常
                         if (contentLayout.getParent() != null) {
+                            //如果有父节点,将contentLayout从父节点中移除
                             ((ViewGroup) contentLayout.getParent()).removeView(contentLayout);
                         }
+                        //添加到popupViewContent布局中
                         popupViewContent.addView(contentLayout);
                     }
 
+                    //执行动画 将popupView从点击的位置渐隐变大到最终的布局中
                     DurX.putOn(popupView)
                         .pivotX(0f)
-                        .pivotY(0f)
-                        .invisible()
-                        .waitForSize(new Listeners.Size() {
+                        .pivotY(0f)//中心点设置在左上角点
+                        .invisible()//设置不可见
+                        .waitForSize(new Listeners.Size() {//此处是为了保证该view已经被绘制成功
                             @Override
                             public void onSize(DurX durX) {
+                                //viewOrigin是原始点击的view,及动画开始的地方
                                 if (viewOrigin != null) {
+                                    //宽度的缩放比
                                     differenceScaleX = viewOrigin.getWidth() * 1.0f / popupView.getWidth();
+                                    //高度的缩放比
                                     differenceScaleY = viewOrigin.getHeight() * 1.0f / popupView.getHeight();
 
                                     float translationX;
                                     float translationY;
 
-                                    if (center) {
+                                    if (center) {//居中放大处理 效果貌似不佳 TODO 待验证
                                         differenceTranslationX = getX(viewOrigin);
                                         differenceTranslationY = getY(viewOrigin);
                                         translationX = activityView.getWidth() / 2 - popupView.getWidth() / 2;
                                         translationY = activityView.getHeight() / 2 - popupView.getHeight() / 2;
-                                    } else {
+                                    } else { //计算popupView从viewOrigin转换过来的位移参数
                                         differenceTranslationX = getX(viewOrigin) - getX(popupView);
                                         differenceTranslationY = getY(viewOrigin) - getY(popupView);
+                                        //从viewOrigin左边沿移动到popupView中心的长度
                                         translationX = getX(viewOrigin) - (popupView.getWidth() - viewOrigin.getWidth()) / 2f;
                                         translationY = getY(viewOrigin) - getStatusBarHeight();
                                     }
@@ -265,14 +293,15 @@ public class MaryPopup implements View.OnClickListener {
                                     DurX.putOn(popupView)
                                         .translationX(differenceTranslationX)
                                         .translationY(differenceTranslationY)
-                                        .visible()
+                                        .visible()//设置到viewOrigin的位置 并且visible
 
-                                        .animate()
+                                        //先执行背景Container的动画
+                                        .animate()//初始化动画类 ViewPropertyAnimatorCompat
                                         .scaleX(differenceScaleX, 1f)
-                                        .scaleY(differenceScaleY, 1f)
+                                        .scaleY(differenceScaleY, 1f)//动画执行从viewOrigin到popupView的缩放
                                         .translationX(differenceTranslationX, translationX)
-                                        .translationY(differenceTranslationY, translationY)
-                                        .duration(openDuration)
+                                        .translationY(differenceTranslationY, translationY)//动画执行从viewOrigin到popupView的位移
+                                        .duration(openDuration)//开启执行的时间
                                         .end(new Listeners.End() {
                                             @Override
                                             public void onEnd() {
@@ -285,40 +314,59 @@ public class MaryPopup implements View.OnClickListener {
                                                 handleClick = true;
                                             }
                                         })
-                                        .pullOut()
+                                        .pullOut()//获取DurX 对象
 
-                                        .andPutOn(popupViewContent)
+                                        //在执行popupView中content内容的动画
+                                        .andPutOn(popupViewContent)//重新添加需要执行属性变化的view
                                         .visible()
                                         .animate()
-                                        .startDelay(openDuration - 100)
+                                        .startDelay(openDuration - 100)//延迟100ms执行
                                         .alpha(0f, 1f);
                                 }
                             }
                         });
+                    //将popupView 添加到 R.id.content 中
                     activityView.addView(popupView);
                 }
             }
         }
     }
 
+    /**
+     * 只有当遮罩层不为空是才能点击关闭
+     * @return
+     */
     public boolean canClose() {
         return blackOverlay != null;
     }
 
+    /**
+     * 检测是否开启也是根据是否有遮罩层来判断的
+     * @return
+     */
     public boolean isOpened() {
         return blackOverlay != null;
     }
 
+    /**
+     * 关闭该弹出层
+     * @param withScaleDown 是否有缩放动画
+     * @return
+     */
     public boolean close(final boolean withScaleDown) {
         if (blackOverlay != null) {
 
             handleClick = false;
 
+            //执行完动画后的状态清理
             final Listeners.End clearListener = new Listeners.End() {
                 @Override
                 public void onEnd() {
+                    //动画执行完后 移除遮罩层
                     activityView.removeView(blackOverlay);
+                    //制空 利于回收
                     blackOverlay = null;
+                    //移除popupView
                     activityView.removeView(popupView);
                     popupView = null;
                     isAnimating = false;
@@ -326,6 +374,7 @@ public class MaryPopup implements View.OnClickListener {
             };
 
             isAnimating = true;
+            //需要执行缩放动画 //TODO 分析以下代码
             if (withScaleDown) {
 
                 float scaleX = viewOrigin.getWidth() * 1.0f / (popupView.getWidth() * ViewCompat.getScaleX(popupView));
@@ -419,10 +468,21 @@ public class MaryPopup implements View.OnClickListener {
         return this;
     }
 
+    /**
+     * 获取statusBar的高度其实很简单
+     * 值需要获取到 android.R.id.content view在
+     * 全局中的top值 = 状态栏高度
+     * @return
+     */
     public float getStatusBarHeight() {
         return getY(activityView);
     }
 
+    /**
+     * 获取一个view在屏幕中的y坐标
+     * @param view
+     * @return
+     */
     float getY(View view) {
         Rect rect = new Rect();
         view.getGlobalVisibleRect(rect);
@@ -433,6 +493,11 @@ public class MaryPopup implements View.OnClickListener {
         return y;
     }
 
+    /**
+     * 获取一个view在屏蔽中的x坐标
+     * @param view
+     * @return
+     */
     float getX(View view) {
         Rect rect = new Rect();
         view.getGlobalVisibleRect(rect);

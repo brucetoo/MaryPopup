@@ -12,6 +12,8 @@ import java.lang.ref.WeakReference;
 
 /**
  * Created by florentchampigny on 19/04/2016.
+ * 用户获取或者设置view的属性值
+ * 或者执行属性动画,支持链式处理不同的view
  */
 public class DurX {
 
@@ -21,15 +23,29 @@ public class DurX {
         this.view = view;
     }
 
+    /**
+     * 添加一个需要属性变化的view
+     * @param view
+     * @return
+     */
     public static DurX putOn(View view) {
         return new DurX(view);
     }
 
+    /**
+     * 切换需要属性变化的view
+     * @param view
+     * @return
+     */
     public DurX andPutOn(View view) {
         this.view = view;
         return this;
     }
 
+    /**
+     * 监听view被绘制完成后的回调
+     * @param sizeListener 获取view size的回调
+     */
     public void waitForSize(final Listeners.Size sizeListener) {
         view.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
 
@@ -46,12 +62,20 @@ public class DurX {
         });
     }
 
+    /**
+     * 获取view在全局中的top值 也就是Y值
+     * @return
+     */
     public float getY() {
         Rect rect = new Rect();
         view.getGlobalVisibleRect(rect);
         return rect.top;
     }
 
+    /**
+     * 获取当前view的x坐标  实际值= translationX + getLeft
+     * @return
+     */
     public float getX() {
         return ViewCompat.getX(view);
     }
@@ -142,15 +166,26 @@ public class DurX {
         return this;
     }
 
+    /**
+     * 属性变化的动画效果
+     * @return
+     */
     public DurXAnimator animate() {
         return new DurXAnimator(this);
     }
 
+
+    /**
+     * 动画执行的监听
+     * 相当于使用弱引用将所有的监听都包裹起来,
+     * 重新定义自己的监听
+     */
     static class DurXAnimatorListener implements ViewPropertyAnimatorListener {
 
         WeakReference<DurXAnimator> reference;
 
         public DurXAnimatorListener(DurXAnimator durXAnimator) {
+            //类用弱引用包裹起来,利于回收
             this.reference = new WeakReference<>(durXAnimator);
         }
 
@@ -202,17 +237,28 @@ public class DurX {
         }
     }
 
+
+    /**
+     * 该内部类用来执行属性动画
+     */
     public static class DurXAnimator {
+        //属性动画执行的兼容类 -- 但是发现源码在 < 14的版本中全是空实现
         final ViewPropertyAnimatorCompat animator;
         final DurX durX;
 
+        //所有的监听状态都用弱引用包裹起来,且全部监听都是分开的 可以只监听关心的回调
         WeakReference<Listeners.Start> startListener;
         WeakReference<Listeners.End> endListener;
         WeakReference<Listeners.Update> updateListener;
 
+        /**
+         * 初始化动画执行类
+         * @param durX
+         */
         DurXAnimator(DurX durX) {
             this.animator = ViewCompat.animate(durX.view);
             this.durX = durX;
+            //设置监听
             this.animator.setListener(new DurXAnimatorListener(this));
         }
 
@@ -222,8 +268,9 @@ public class DurX {
         }
 
         public DurXAnimator alpha(float from, float to) {
+            //先设置起点的alpha值
             durX.alpha(from);
-            return alpha(to);
+            return alpha(to);//在执行动画到to值
         }
 
         public DurXAnimator scaleX(float scale) {
@@ -318,6 +365,11 @@ public class DurX {
             return durX;
         }
 
+        /**
+         * 执行完动画后再执行另一个view的动画,所有的属性值都可以改变 重新执行
+         * @param view
+         * @return
+         */
         public DurXAnimator thenAnimate(View view) {
             DurX durX = new DurX(view);
             DurXAnimator durXAnimator = durX.animate();
@@ -325,6 +377,11 @@ public class DurX {
             return durXAnimator;
         }
 
+        /**
+         * 同时执行另一个view的动画
+         * @param view
+         * @return
+         */
         public DurXAnimator andAnimate(View view) {
             DurX durX = new DurX(view);
             DurXAnimator durXAnimator = durX.animate();
