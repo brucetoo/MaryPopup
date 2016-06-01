@@ -15,18 +15,23 @@ public class DraggableView extends FrameLayout {
 
     public static final int DEFAULT_EXIT_DURATION = 150;
 
+    //原始view的x,y坐标
     public float motionXOrigin;
     public float motionYOrigin;
+
     public float parentWidth;
     public float parentHeight;
+
     protected float oldPercentX = 0;
     protected float oldPercentY = 0;
+
     float maxDragPercentageY = 0.75f;
-    float maxDragPercentageX = 0.75f;
-    boolean listenVelocity = true;
+    float maxDragPercentageX = 0.75f;//最大拖拽比例
+
+    boolean listenVelocity = true;//监听速率?
     boolean draggable = true;
     boolean inlineMove = false;
-    boolean vertical = false;
+    boolean vertical = false;//监听垂直滚动
     boolean rotationEnabled;
     float rotationValue;
     boolean animating;//if draggable view already animating
@@ -137,9 +142,9 @@ public class DraggableView extends FrameLayout {
         this.vertical = vertical;
     }
 
-    //translationX == 0 => 0
-    //-parentWidth/2 => -1
-    //parentWidth/2 => -1
+    //translationX == 0 => 0 如果没有移动 getTranslationX = 0
+    //-parentWidth/2 => -1 如果向左移动 getTranslationX < 0
+    //parentWidth/2 => -1  如果向右移动 getTranslationX > 0
     public float getPercentX() {
         float percent = 2f * (ViewCompat.getTranslationX(this) - originalViewX) / getParentWidth();
         if (percent > 1) {
@@ -185,6 +190,11 @@ public class DraggableView extends FrameLayout {
     public boolean onInterceptTouchEvent(MotionEvent event) {
         final int action = MotionEventCompat.getActionMasked(event);
 
+        /**
+        ACTION_DOWN 记录下第一次按下时的x,y坐标
+        ACTION_MOVE 中判断是否左右或者上下滑动>10 则截断事件 让
+         {@link #onTouchEvent(MotionEvent)}去处理截断的事件 并且返回true
+         */
         switch (action) {
             case MotionEvent.ACTION_DOWN:
                 motionXOrigin = event.getRawX();
@@ -211,12 +221,20 @@ public class DraggableView extends FrameLayout {
         return handleTouch(event);
     }
 
+    /**
+     * 实时根据 getTranslationX 的大小来判断移动的方向及对应的percent比例
+     */
     public void update() {
         float percentX = getPercentX();
         float percentY = getPercentY();
         update(percentX, percentY);
     }
 
+    /**
+     * 实时刷新拖拽的回调或更新比例
+     * @param percentX
+     * @param percentY
+     */
     public void update(float percentX, float percentY) {
         if (rotationEnabled) {
             ViewCompat.setRotation(this, percentX * rotationValue);
@@ -268,11 +286,20 @@ public class DraggableView extends FrameLayout {
         this.originalViewY = originalViewY;
     }
 
+    /**
+     * 初始话DraggableView 移动的x,y距离,如果没执行过 translationX,Y返回0
+     */
     public void initOriginalViewPositions() {
         this.originalViewX = ViewCompat.getTranslationX(this);
         this.originalViewY = ViewCompat.getTranslationY(this);
     }
 
+
+    /**
+     * 真正的滑动处理事件是在这里进行的
+     * @param event
+     * @return
+     */
     boolean handleTouch(MotionEvent event) {
         if (draggable && !animating) {
             boolean handledByDetector = this.detector.onTouchEvent(event);
@@ -280,24 +307,29 @@ public class DraggableView extends FrameLayout {
 
                 final int action = MotionEventCompat.getActionMasked(event);
                 switch (action) {
-                    case MotionEvent.ACTION_DOWN:
-                        //motionXOrigin = event.getRawX();
-                        //motionYOrigin = event.getRawY();
-                        break;
+                    //ACTION_DOWN 在此根本是无用的 直接忽略掉
+//                    case MotionEvent.ACTION_DOWN:
+//                        //motionXOrigin = event.getRawX();
+//                        //motionYOrigin = event.getRawY();
+//                        break;
                     case MotionEvent.ACTION_UP:
+                        //处理滑动结束ACTION_UP事件
                         actionUp();
                         break;
                     case MotionEvent.ACTION_MOVE: {
+                        //通过滑动来获取当前最新的x,y坐标
                         float newMotionX = event.getRawX();
                         float newMotionY = event.getRawY();
 
                         float diffMotionX = newMotionX - motionXOrigin;
                         float diffMotionY = newMotionY - motionYOrigin;
 
+                        //通过判断是否垂直滚动来让view执行垂直还是水平方向的位移
                         if (vertical) {
-                            if (!inlineMove) {
+                            if (!inlineMove) {//级联移动?没懂
                                 ViewCompat.setTranslationX(this, originalViewX + diffMotionX);
                             }
+                            //在原始view的位置的 originalViewY + 滑动的距离
                             ViewCompat.setTranslationY(this, originalViewY + diffMotionY);
                         } else {
                             if (!inlineMove) {
@@ -305,7 +337,7 @@ public class DraggableView extends FrameLayout {
                             }
                             ViewCompat.setTranslationX(this, originalViewX + diffMotionX);
                         }
-
+                        //每次滑动得到最新的x,y坐标时都要实时计算更新现在滑动的比例
                         update();
                     }
                     break;
@@ -373,7 +405,14 @@ public class DraggableView extends FrameLayout {
         return animateExit;
     }
 
+    /**
+     * DraggableView的初始化操作
+     * @param context
+     */
     private void initialize(Context context) {
+
+        //手势监听--只监听 Fling 手势(滑动)
+        //用GestureDetectorCompat来区别不同的版本变化
         detector = new GestureDetectorCompat(context, new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onFling(@Nullable MotionEvent event1, @Nullable MotionEvent event2, float velocityX, float velocityY) {
@@ -382,6 +421,7 @@ public class DraggableView extends FrameLayout {
                 if (listenVelocity && !animating && viewAnimator != null && event1 != null && event2 != null) {
                     if (vertical) {//if vertical
                         if (Math.abs(velocityY) > minVelocity) {
+                            //TODO 好像这里判断反了？
                             float distanceY = event1.getRawY() - event2.getRawY();
                             if (distanceY < 0) {
                                 animated = animateExit(Direction.TOP);
@@ -404,6 +444,7 @@ public class DraggableView extends FrameLayout {
             }
         });
 
+        //初始化viewAnimator 采用默认的实现 返回到原始的view位置
         this.viewAnimator = new ReturnOriginViewAnimator<DraggableView>() {
         };
     }

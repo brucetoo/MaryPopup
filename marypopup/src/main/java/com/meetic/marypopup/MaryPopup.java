@@ -374,7 +374,7 @@ public class MaryPopup implements View.OnClickListener {
             };
 
             isAnimating = true;
-            //需要执行缩放动画 //TODO 分析以下代码
+            //需要执行缩放动画
             if (withScaleDown) {
 
                 float scaleX = viewOrigin.getWidth() * 1.0f / (popupView.getWidth() * ViewCompat.getScaleX(popupView));
@@ -391,30 +391,33 @@ public class MaryPopup implements View.OnClickListener {
                     translationY = ViewCompat.getTranslationY(popupView) - getStatusBarHeight();
                 }
 
+                //获取viewOrigin在屏幕中的x,y坐标 及 左上角位置
                 float xViewOrigin = getX(viewOrigin);
                 float yViewOrigin = getY(viewOrigin);
 
                 float xPopupView = getX(popupView);
+                //此处是否需要减去 getStatusBarHeight 其实是影响不大
                 float yPopupView = getY(popupView) - getStatusBarHeight();
 
-                float tx = 0;
-                if (xViewOrigin < xPopupView) {
-                    tx = xPopupView - xViewOrigin;
-                } else { // xViewOrigin > xPopupView
-                    tx = xViewOrigin - xPopupView;
-                }
-
+                //计算view之间的x距离
+                float tx = Math.abs(xPopupView - xViewOrigin);
+//                if (xViewOrigin < xPopupView) {
+//                    tx = xPopupView - xViewOrigin;
+//                } else { // xViewOrigin > xPopupView
+//                    tx = xViewOrigin - xPopupView;
+//                }
                 if (center) {
                     tx *= (1f - scaleX);
                 }
                 translationX += tx;
 
-                float ty = 0;
-                if (yViewOrigin < yPopupView) {
-                    ty = yPopupView - yViewOrigin;
-                } else { // yViewOrigin > yPopupView
-                    ty = yViewOrigin - yPopupView;
-                }
+                //view之间y距离
+                float ty = Math.abs(yPopupView - yViewOrigin);
+//                if (yViewOrigin < yPopupView) {
+//                    ty = yPopupView - yViewOrigin;
+//                } else { // yViewOrigin > yPopupView
+//                    ty = yViewOrigin - yPopupView;
+//                }
 
                 if (center) {
                     ty *= (1f - scaleY);
